@@ -1,0 +1,34 @@
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">
+  <Obj RefId="0">
+    <TN RefId="0">
+      <T>System.Management.Automation.PSCustomObject</T>
+      <T>System.Object</T>
+    </TN>
+    <MS>
+      <S N="moduleName">psgraphitemetrics</S>
+      <S N="description">Testing out using Graphite Metrics in PowerShell.</S>
+      <Version N="minimumPsVersion">7.2.0</Version>
+      <Obj N="moduleAuthors" RefId="1">
+        <TN RefId="1">
+          <T>System.String[]</T>
+          <T>System.Array</T>
+          <T>System.Object</T>
+        </TN>
+        <LST>
+          <S>adrian.andersson</S>
+        </LST>
+      </Obj>
+      <S N="companyName"></S>
+      <Nil N="tags" />
+      <S N="projectUri">https://github.com/adrian-andersson/psgraphitemetrics</S>
+      <S N="licenseUri"></S>
+      <S N="guid">1b00f85e-73df-477e-92bd-6e9cb8cd8894</S>
+      <S N="moduleforgeVersion">1.0.0</S>
+      <S N="iconUri"></S>
+      <Nil N="requiredModules" />
+      <Nil N="ExternalModuleDependencies" />
+      <S N="DefaultCommandPrefix"></S>
+      <Nil N="PrivateData" />
+    </MS>
+  </Obj>
+</Objs>
