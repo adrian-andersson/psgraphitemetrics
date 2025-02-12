@@ -59,7 +59,7 @@ Describe 'Export-GraphiteMetricToFile' {
         $metricList.AddMetric('my.test.metric', 41.3)
 
         # Specify a custom temp file path
-        $customTempFilePath = "$env:TEMP\custom_metric_file.txt"
+        $customTempFilePath = join-path -path $([System.IO.Path]::GetTempPath()) -ChildPath 'custom_metric_file.txt'
 
         # Export the metric list to the custom file
         $tempFilePath = Export-GraphiteMetricToFile -metricList $metricList -tempFilePath $customTempFilePath
