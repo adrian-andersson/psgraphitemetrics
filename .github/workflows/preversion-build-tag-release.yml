@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: "contains(github.event.head_commit.message, 'deploy ps')"
+    if: "contains(github.event.head_commit.message, 'deploy:')"
 
     steps:
       - name: Checkout repository
