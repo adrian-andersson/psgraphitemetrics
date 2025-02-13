@@ -1,0 +1,72 @@
+name: PSGallery Latest Release
+
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, 'psgalleryrelease:')"
+
+    steps:
+      - name: Get latest release details
+        id: get_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const latestRelease = await github.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('tag_name', latestRelease.data.tag_name);
+            core.setOutput('name', latestRelease.data.name);
+            core.setOutput('body', latestRelease.data.body);
+
+      - name: Output Release Details
+        shell: pwsh
+        env:
+          LastReleaseTag: ${{ steps.get_release.outputs.tag_name }}
+          LastReleaseName: ${{ steps.get_release.outputs.name }}
+          LastReleaseBody: ${{ steps.get_release.outputs.body }}
+        run: |
+          $VerbosePreference = 'Continue'
+          $LastReleaseTag = "$($env:LastReleaseTag)"
+          write-verbose "LastReleaseTag: $LastReleaseTag"
+          $LastReleaseName = "$($env:LastReleaseName)"
+          write-verbose "LastReleaseName: $LastReleaseName"
+          $LastReleaseBody = "$($env:LastReleaseBody)"
+          write-verbose "LastReleaseBody: $LastReleaseBody"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          $VerbosePreference = 'Continue'
+          Install-Module -Name Microsoft.PowerShell.PSResourceGet -Force -SkipPublisherCheck
+          $moduleList = @('Microsoft.PowerShell.PSResourceGet')
+          import-module $moduleList
+          get-module $moduleList|Select-object Name,@{name='version';expression={if($_.PrivateData.PSData.Prerelease){"$($_.Version)-$($_.PrivateData.PSData.Prerelease)"}else{"$($_.Version)"}}}|Format-Table
+
+      - name: Register Repository
+        shell: pwsh
+        id: repoSetup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: success()  
+        run: |
+          $VerbosePreference = 'Continue'
+          $repoUrl = ""https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json""
+          write-verbose "Got repoUrl: $repoUrl"
+          $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
+          $repositorySplat = @{
+            uri = $repoUrl
+            credential = $credential
+            trusted = $true
+            name = 'myGHPackages'
+          }
+          register-psresourcerepository @repositorySplat
+          write-verbose "Repositories:`n $(get-psresourceRepository|select name,uri,trusted|format-list|out-string)"
+      
