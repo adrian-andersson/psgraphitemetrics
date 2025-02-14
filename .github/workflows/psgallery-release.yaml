@@ -11,16 +11,22 @@ jobs:
     steps:
       - name: Get latest release details
         id: get_release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const latestRelease = await github.repos.getLatestRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            });
-            core.setOutput('tag_name', latestRelease.data.tag_name);
-            core.setOutput('name', latestRelease.data.name);
-            core.setOutput('body', latestRelease.data.body);
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $verbosePreference = 'Continue'
+          $release = gh release view --json tagName,name,body -q ".tagName,.name,.body"
+          write-verbose "Release:`n$($release|out-string)"
+          $releaseDetails = $release | ConvertFrom-Json
+          $tagName = $releaseDetails.tagName
+          $releaseName = $releaseDetails.name
+          $releaseBody = $releaseDetails.body
+          Write-Output "::set-output name=tag_name::$tagName"
+          Write-Output "::set-output name=release_name::$releaseName"
+          Write-Output "::set-output name=release_body::$releaseBody"
+
+
 
       - name: Output Release Details
         shell: pwsh
