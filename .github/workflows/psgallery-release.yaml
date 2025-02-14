@@ -22,20 +22,23 @@ jobs:
         run: |
           $verbosePreference = 'Continue'
           #Even though we put in --JSON, it seems to return an array
-          $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease -q ".tagName,.name,.body"
+          $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease "
           write-verbose "Release:`n$($release|out-string)"
-          write-verbose "ReleaseObjectCount: $($release.count)"
-          $tagName = $release[0]
-          $releaseName = $release[1]
-          $releaseBody = $release[2]
-          $createdAt = $release[3]
-          $author = $release[4]
-          $isPreRelease = $release[5]
+          $releaseFromJson = $release|convertFrom-json -errorAction ignore
+          write-verbose "Release:`n$($releaseFromJson|out-string)"
+          $tagName = $releaseFromJson.tagName
+          $releaseName = $releaseFromJson.name
+          $releaseBody = $releaseFromJson.body
+          $createdAt = $releaseFromJson.createdAt
+          $author = $releaseFromJson.author
+          $assets = $releaseFromJson.assets
+          $isPreRelease = $releaseFromJson.isPrerelease
           Write-Output "::set-output name=tag_name::$tagName"
           Write-Output "::set-output name=release_name::$releaseName"
           Write-Output "::set-output name=release_body::$releaseBody"
           Write-Output "::set-output name=release_author::$author"
           Write-Output "::set-output name=release_createdAt::$createdAt"
+          Write-Output "::set-output name=release_assets::$assets"
           Write-Output "::set-output name=release_isPreRelease::$isPreRelease"
 
       - name: Output Release Details
@@ -66,10 +69,11 @@ jobs:
         shell: pwsh
         id: repoSetup
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
+          write-verbose "SecretObjType: $(($env:GH_TOKEN).gettype())"
           $repoUrl = "https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json"
           write-verbose "Got repoUrl: $repoUrl"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
