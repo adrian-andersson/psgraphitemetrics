@@ -70,7 +70,7 @@ jobs:
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
-          $repoUrl = ""https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json""
+          $repoUrl = "https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json"
           write-verbose "Got repoUrl: $repoUrl"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
           $repositorySplat = @{
