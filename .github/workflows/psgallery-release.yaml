@@ -32,8 +32,8 @@ jobs:
         shell: pwsh
         env:
           LastReleaseTag: ${{ steps.get_release.outputs.tag_name }}
-          LastReleaseName: ${{ steps.get_release.outputs.name }}
-          LastReleaseBody: ${{ steps.get_release.outputs.body }}
+          LastReleaseName: ${{ steps.get_release.outputs.release_name }}
+          LastReleaseBody: ${{ steps.get_release.outputs.release_body }}
         run: |
           $VerbosePreference = 'Continue'
           $LastReleaseTag = "$($env:LastReleaseTag)"
