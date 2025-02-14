@@ -68,21 +68,27 @@ jobs:
       - name: Register Repository
         shell: pwsh
         id: repoSetup
+        if: success()  
+        run: |
+          $VerbosePreference = 'Continue'
+          $repoUrl = "https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json"
+          write-verbose "Got repoUrl: $repoUrl"
+          $repositorySplat = @{
+            uri = $repoUrl
+            trusted = $true
+            name = 'myGHPackages'
+          }
+          register-psresourcerepository @repositorySplat
+          write-verbose "Repositories:`n $(get-psresourceRepository|select name,uri,trusted|format-list|out-string)"
+
+      - name: Install Latest Module
+        shell: pwsh
+        id: moduleInstall
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
           write-verbose "SecretObjType: $(($env:GH_TOKEN).gettype())"
-          $repoUrl = "https://nuget.pkg.github.com/$($env:GITHUB_REPOSITORY_OWNER)/index.json"
-          write-verbose "Got repoUrl: $repoUrl"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
-          $repositorySplat = @{
-            uri = $repoUrl
-            credential = $credential
-            trusted = $true
-            name = 'myGHPackages'
-          }
-          register-psresourcerepository @repositorySplat
-          write-verbose "Repositories:`n $(get-psresourceRepository|select name,uri,trusted|format-list|out-string)"
-      
+          
