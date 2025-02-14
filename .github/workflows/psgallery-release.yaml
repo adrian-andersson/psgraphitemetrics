@@ -22,7 +22,7 @@ jobs:
         run: |
           $verbosePreference = 'Continue'
           #Even though we put in --JSON, it seems to return an array
-          $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease "
+          $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease
           write-verbose "Release:`n$($release|out-string)"
           $releaseFromJson = $release|convertFrom-json -errorAction ignore
           write-verbose "Release:`n$($releaseFromJson|out-string)"
