@@ -91,4 +91,11 @@ jobs:
           $VerbosePreference = 'Continue'
           write-verbose "SecretObjType: $(($env:GH_TOKEN).gettype())"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
-          
+          $latestRelease = find-psresource -Repository myGHPackages -Name psgraphitemetrics -Verbose -Prerelease
+          write-verbose "latestRelease: $latestRelease|format-list|out-string"
+          if($latestRelease)
+          {
+            $latestRelease|install-psresource
+          }else{
+            write-warning 'No module found'
+          }
