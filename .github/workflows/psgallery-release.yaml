@@ -99,3 +99,10 @@ jobs:
           }else{
             write-warning 'No module found'
           }
+          $moduleFound = get-module psgraphitemetrics -listAvailable
+          if($moduleFound)
+          {
+            write-verbose "ModuleFound:`n$($moduleFound|out-string)"
+          }else{
+            write-warning 'Module failed install'
+          }
