@@ -21,15 +21,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $verbosePreference = 'Continue'
-          $release = gh release view --json tagName,name,body -q ".tagName,.name,.body"
+          #Even though we put in --JSON, it seems to return an array
+          $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease -q ".tagName,.name,.body"
           write-verbose "Release:`n$($release|out-string)"
-          $releaseDetails = $release | ConvertFrom-Json
-          $tagName = $releaseDetails.tagName
-          $releaseName = $releaseDetails.name
-          $releaseBody = $releaseDetails.body
+          write-verbose "ReleaseObjectCount: $($release.count)"
+          $tagName = $release[0]
+          $releaseName = $release[1]
+          $releaseBody = $release[2]
+          $createdAt = $release[3]
+          $author = $release[4]
+          $isPreRelease = $release[5]
           Write-Output "::set-output name=tag_name::$tagName"
           Write-Output "::set-output name=release_name::$releaseName"
           Write-Output "::set-output name=release_body::$releaseBody"
+          Write-Output "::set-output name=release_author::$author"
+          Write-Output "::set-output name=release_createdAt::$createdAt"
+          Write-Output "::set-output name=release_isPreRelease::$isPreRelease"
 
       - name: Output Release Details
         shell: pwsh
