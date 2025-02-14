@@ -1,6 +1,5 @@
 name: PSGallery Latest Release
 
-
 on:
   workflow_dispatch:
 
@@ -14,7 +13,7 @@ jobs:
         with:
           token: ${{ secrets.GH_PAT }}
           fetch-depth: 0 #Ensure we are getting all the tag history
-          
+
       - name: Get latest release details
         id: get_release
         shell: pwsh
@@ -31,8 +30,6 @@ jobs:
           Write-Output "::set-output name=tag_name::$tagName"
           Write-Output "::set-output name=release_name::$releaseName"
           Write-Output "::set-output name=release_body::$releaseBody"
-
-
 
       - name: Output Release Details
         shell: pwsh
