@@ -104,7 +104,7 @@ jobs:
             $nextVerSplat.stablerelease = $true
 
           }
-          $nextVersion = get-mfNextVersion @nextVerSplat
+          $nextVersion = get-mfNextSemver @nextVerSplat
           Write-Verbose "NEXT VERSION SHOULD BE: $nextVersion"
           build-mfProject -version $nextVersion -InformationAction Continue
           Write-Output "::set-output name=next_version::$nextVersion"
