@@ -1,0 +1,234 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Type of version increment'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - none
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+          - stable
+          - prerelease
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+  steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0 #Ensure we are getting all the tag history
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          Install-Module -Name Pester -Force -SkipPublisherCheck
+          Install-Module -Name Microsoft.PowerShell.PSResourceGet -Force -SkipPublisherCheck
+          Install-Module -Name ModuleForge -AllowPrerelease -Force -SkipPublisherCheck
+          $moduleList = @('Pester','Microsoft.PowerShell.PSResourceGet','ModuleForge')
+          import-module $moduleList
+          get-module $moduleList|Select-object Name,@{name='version';expression={if($_.PrivateData.PSData.Prerelease){"$($_.Version)-$($_.PrivateData.PSData.Prerelease)"}else{"$($_.Version)"}}}|Format-Table
+
+      - name: Run Pester tests
+        shell: pwsh
+        id: pester_tests
+        run: |
+          $pesterConfigHash = @{
+              Run = @{
+                  Passthru = $true
+                  Path = $(join-path -path (join-path -path . -childpath 'source') -childpath 'functions')
+              }
+              CodeCoverage = @{
+                  Enabled = $true
+                  Path = $(join-path -path (join-path -path . -childpath 'source') -childpath 'functions')
+              }
+              Output = @{
+                  Verbosity = 'Detailed'
+              }
+          }
+          $pesterConfig = New-PesterConfiguration -hashtable $pesterConfigHash
+          Invoke-Pester -Configuration $pesterConfig
+
+      - name: Get next version and build
+        shell: pwsh
+        id: generate_tag
+        if: success()
+        run: |
+          $VerbosePreference = 'Continue'
+          write-verbose 'Getting Tags'
+          $versionTags = git tag --list
+          write-verbose "Got VersionTags: $versionTags"
+          if($versionTags) {
+            Write-Verbose 'Version Tags Found'
+            $versions = $versionTags.ForEach{[semver]::new($_.TrimStart("v"))}
+            $latest = ($versions | Sort-Object -Descending | Select-Object -First 1)
+          } else {
+            Write-Verbose 'Generating new version from scratch at 1'
+            $latest = [semver]::new(1,0,0)
+          }
+          $versionType=${{ github.event.inputs.version_type }}
+          $releaseType=${{ github.event.inputs.release_type }}
+          write-verbose "Version Increment Type: $versionType"
+          write-verbose "Version Release Type: $releaseType"
+          $nextVerSplat = @{
+            version = $latest #The current version
+
+          }
+          if($versionType -eq 'none'){
+            write-verbose 'Bump current version'
+
+          }else{
+            write-verbose "Changing $versoinType version"
+            $nextVerSplat.increment = $versionType
+          }
+          if($releaseType -eq 'prerelease'){
+            write-verbose 'Pre Release'
+            $nextVerSplat.prerelease = $true
+
+          }else{
+            write-verbose 'Stable Release'
+            $nextVerSplat.stablerelease = $true
+
+          }
+          $nextVersion = get-mfNextVersion @nextVerSplat
+          Write-Verbose "NEXT VERSION SHOULD BE: $nextVersion"
+          build-mfProject -version $nextVersion -InformationAction Continue
+          Write-Output "::set-output name=next_version::$nextVersion"
+
+      - name: Publish to Local
+        shell: pwsh
+        id: publish_local
+        if: success()
+        env:
+          REPO_URI: ${{ github.repository }}
+        run: |
+          $verbosePreference = 'continue'
+          $repositoryUri = "https://github.com/$($env:REPO_URI)"
+          write-verbose "Repository URI: $repositoryUri"
+          $currentPath = get-location
+          #Find the item from the build
+          $psd1Ref = $(get-childItem -path ./build/ -recurse -filter '*.psd1').fullname
+          if($psd1Ref)
+          {
+            write-verbose "Found PSD1 file: $psd1Ref"
+          }else{
+            throw 'No PSD1 file found'
+          }
+
+          $repositoryPath = join-path -path $currentPath -childPath 'LocalRepository'
+          write-verbose "Will create local repository at path: $repositoryPath"
+          if(!(test-path $repositoryPath))
+          {
+            new-item -itemType Directory -path $repositoryPath
+          }
+          register-mfLocalPsResourceRepository -path $repositoryPath
+          publish-psresource -repository LocalTestRepository -path $psd1Ref
+
+          $nuRef = (get-childItem -path $repositoryPath -recurse -filter *.nupkg).fullname
+          if($nuRef)
+          {
+            write-verbose "Found NUPKG: $nuRef"
+          }else{
+            throw 'No NUPKG found'
+          }
+          add-mfRepositoryXmlData -repositoryUri $repositoryUri  -nugetPackagePath $nuRef
+
+      - name: Create new tag
+        shell: pwsh
+        if: success()
+        env:
+          NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
+        run: |
+          $verbosePreference = 'Continue'
+          write-verbose 'Post VerbosePreference'
+          Write-Verbose "Creating tag v$($env:NEXT_VERSION)"
+          $ver = "v$($env:NEXT_VERSION)"
+          
+          if($ver)
+          {
+            write-verbose "Tagging Version as: $ver"
+            git tag "$ver"
+            git push --tags 
+          }else{
+            write-verbose 'No ver?'
+          }
+
+      - name: Create GitHub Release
+        shell: pwsh
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
+        run: |
+          $verbosePreference = 'Continue'
+          $ver = "v$($env:NEXT_VERSION)"
+          $releaseName = "Release $($ver)"
+          $releaseBody = "This is the release for version $ver"
+          $currentPath = get-location
+          $repositoryPath = join-path -path $currentPath -childPath 'LocalRepository'
+          $nuRef = (get-childItem -path $repositoryPath -recurse -filter *.nupkg).fullname
+          if($nuRef)
+          {
+            write-verbose "Found NUPKG: $nuRef"
+          }else{
+            throw 'No NUPKG found'
+          }
+
+          gh release create $ver --title $releaseName --notes $releaseBody
+
+      - name: Upload Nupkg to Release
+        shell: pwsh
+        if: success()
+        env:
+          NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
+          REPO_URI: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $verbosePreference = 'Continue'
+          $ver = "v$($env:NEXT_VERSION)"
+          $currentPath = get-location
+          $repositoryPath = join-path -path $currentPath -childPath 'LocalRepository'
+          $nuRef = (get-childItem -path $repositoryPath -recurse -filter *.nupkg).fullname
+          if($nuRef)
+          {
+            write-verbose "Found NUPKG: $nuRef"
+          }else{
+            throw 'No NUPKG found'
+          }
+          gh release upload $ver $nuRef
+
+      - name: Publish to GitHub Packages
+        shell: pwsh
+        if: success()
+        env:
+          NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
+          REPO_URI: ${{ github.repository_owner }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          $verbosePreference = 'Continue'
+          $ver = "v$($env:NEXT_VERSION)"
+          $repoUri = "https://nuget.pkg.github.com/$($env:REPO_URI)/index.json"
+          $currentPath = get-location
+          $repositoryPath = join-path -path $currentPath -childPath 'LocalRepository'
+          $nuRef = (get-childItem -path $repositoryPath -recurse -filter *.nupkg).fullname
+          if($nuRef)
+          {
+            write-verbose "Found NUPKG: $nuRef"
+          }else{
+            throw 'No NUPKG found'
+          }
+          dotnet nuget push $nuRef -k $env:GH_PAT -s $repoUri
