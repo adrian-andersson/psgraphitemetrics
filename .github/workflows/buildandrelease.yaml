@@ -92,7 +92,7 @@ jobs:
             write-verbose 'Bump current version'
 
           }else{
-            write-verbose "Changing $versoinType version"
+            write-verbose "Changing $versionType version"
             $nextVerSplat.increment = $versionType
           }
           if($releaseType -eq 'prerelease'){
