@@ -80,8 +80,8 @@ jobs:
             Write-Verbose 'Generating new version from scratch at 1'
             $latest = [semver]::new(1,0,0)
           }
-          $versionType=${{ github.event.inputs.version_type }}
-          $releaseType=${{ github.event.inputs.release_type }}
+          $versionType="${{ github.event.inputs.version_type }}"
+          $releaseType="${{ github.event.inputs.release_type }}"
           write-verbose "Version Increment Type: $versionType"
           write-verbose "Version Release Type: $releaseType"
           $nextVerSplat = @{
