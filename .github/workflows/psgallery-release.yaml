@@ -70,8 +70,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           PSGalleryToken: ${{ secrets.PSGALLERY }}
-          isPreRelease: ${{ steps.generate_tag.outputs.release_isPreRelease }}
-          tag_name: ${{ steps.generate_tag.outputs.tag_name }}
+          isPreRelease: ${{ steps.get_release.outputs.release_isPreRelease }}
+          tagName: ${{ steps.get_release.outputs.tag_name }}
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
@@ -79,10 +79,11 @@ jobs:
           $config = import-clixml .\moduleForgeConfig.xml
           write-verbose "ModuleName: $($config.moduleName)"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
-          $versionString = $($env:tag_name)
+          $versionString = $env:tagName
+          write-verbose "Version from Tag: $versionString"
           $version = $versionString.substring(1)
           $semver = [semver]::New($version)
-          write-verbose "Version from tag: $versionString | $semver"
+          write-verbose "VersionConvert : $semver"
           $fetchSplat = @{
             Repository = 'myGHPackages'
             name = $($config.moduleName)
