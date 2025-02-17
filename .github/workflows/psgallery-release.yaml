@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  psgalleryDeploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,11 +21,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $verbosePreference = 'Continue'
-          #Even though we put in --JSON, it seems to return an array
           $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease
           write-verbose "Release:`n$($release|out-string)"
           $releaseFromJson = $release|convertFrom-json -errorAction ignore
-          write-verbose "Release:`n$($releaseFromJson|out-string)"
           $tagName = $releaseFromJson.tagName
           $releaseName = $releaseFromJson.name
           $releaseBody = $releaseFromJson.body
@@ -33,28 +31,13 @@ jobs:
           $author = $releaseFromJson.author
           $assets = $releaseFromJson.assets
           $isPreRelease = $releaseFromJson.isPrerelease
-          Write-Output "::set-output name=tag_name::$tagName"
-          Write-Output "::set-output name=release_name::$releaseName"
-          Write-Output "::set-output name=release_body::$releaseBody"
-          Write-Output "::set-output name=release_author::$author"
-          Write-Output "::set-output name=release_createdAt::$createdAt"
-          Write-Output "::set-output name=release_assets::$assets"
-          Write-Output "::set-output name=release_isPreRelease::$isPreRelease"
-
-      - name: Output Release Details
-        shell: pwsh
-        env:
-          LastReleaseTag: ${{ steps.get_release.outputs.tag_name }}
-          LastReleaseName: ${{ steps.get_release.outputs.release_name }}
-          LastReleaseBody: ${{ steps.get_release.outputs.release_body }}
-        run: |
-          $VerbosePreference = 'Continue'
-          $LastReleaseTag = "$($env:LastReleaseTag)"
-          write-verbose "LastReleaseTag: $LastReleaseTag"
-          $LastReleaseName = "$($env:LastReleaseName)"
-          write-verbose "LastReleaseName: $LastReleaseName"
-          $LastReleaseBody = "$($env:LastReleaseBody)"
-          write-verbose "LastReleaseBody: $LastReleaseBody"
+          Write-Output "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+          Write-Output "release_name=$releaseName" >> $env:GITHUB_OUTPUT
+          Write-Output "release_body=$releaseBody" >> $env:GITHUB_OUTPUT
+          Write-Output "release_author=$author" >> $env:GITHUB_OUTPUT
+          Write-Output "release_createdAt=$createdAt" >> $env:GITHUB_OUTPUT
+          Write-Output "release_assets=$assets" >> $env:GITHUB_OUTPUT
+          Write-Output "release_isPreRelease=$isPreRelease" >> $env:GITHUB_OUTPUT
 
       - name: Install dependencies
         shell: pwsh
@@ -86,12 +69,25 @@ jobs:
         id: moduleInstall
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
+          PSGalleryToken: ${{ secrets.PSGALLERY }}
+          isPreRelease: ${{ steps.generate_tag.outputs.release_isPreRelease }}
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
-          write-verbose "SecretObjType: $(($env:GH_TOKEN).gettype())"
+          $isPreRelease = $env:isPreRelease 
+          $config = import-clixml .\moduleForgeConfig.xml
+          write-verbose "ModuleName: $($config.moduleName)"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
-          $latestRelease = find-psresource -Repository myGHPackages -Name psgraphitemetrics -Verbose -Prerelease -credential $credential
+          $fetchSplat = @{
+            Repository = 'myGHPackages'
+            name = $($config.moduleName)
+            credential = $credential
+          }
+          if($isPreRelease -eq $true)
+          {
+            $fetchSplat.PreRelease = $true
+          }
+          $latestRelease = find-psresource @fetchSplat
           write-verbose "latestRelease: $($latestRelease|format-list|out-string)"
           if($latestRelease)
           {
@@ -106,3 +102,10 @@ jobs:
           }else{
             write-warning 'Module failed install'
           }
+          write-verbose 'Push Package to PSGallery'
+          $publishSplat = @{
+            repository = 'PSGallery'
+            APIKey = $env:PSGalleryToken
+            Path = $moduleFound.moduleBase
+          }
+          publish-psResource @publishSplat
