@@ -79,9 +79,10 @@ jobs:
           $config = import-clixml .\moduleForgeConfig.xml
           write-verbose "ModuleName: $($config.moduleName)"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
-          $version = $env:tag_name.Substring(1)
+          $versionString = $($env:tag_name)
+          $version = $versionString.substring(1)
           $semver = [semver]::New($version)
-          write-verbose "Version from tag: $semver"
+          write-verbose "Version from tag: $versionString | $semver"
           $fetchSplat = @{
             Repository = 'myGHPackages'
             name = $($config.moduleName)
