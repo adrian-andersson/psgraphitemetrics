@@ -33,17 +33,17 @@ jobs:
           token: ${{ secrets.GH_PAT }}
           fetch-depth: 0 #Ensure we are getting all the tag history
 
-      - name: Install dependencies
+      - name: Install dependencies #Install the modules we need for the build
         shell: pwsh
         run: |
           Install-Module -Name Pester -Force -SkipPublisherCheck
-          Install-Module -Name Microsoft.PowerShell.PSResourceGet -Force -SkipPublisherCheck
+          Install-Module -Name Microsoft.PowerShell.PSResourceGet -Force -SkipPublisherCheck 
           Install-Module -Name ModuleForge -AllowPrerelease -Force -SkipPublisherCheck
           $moduleList = @('Pester','Microsoft.PowerShell.PSResourceGet','ModuleForge')
           import-module $moduleList
           get-module $moduleList|Select-object Name,@{name='version';expression={if($_.PrivateData.PSData.Prerelease){"$($_.Version)-$($_.PrivateData.PSData.Prerelease)"}else{"$($_.Version)"}}}|Format-Table
 
-      - name: Run Pester tests
+      - name: Run Pester tests #Unit and Integration Testing
         shell: pwsh
         id: pester_tests
         run: |
@@ -63,60 +63,56 @@ jobs:
           $pesterConfig = New-PesterConfiguration -hashtable $pesterConfigHash
           Invoke-Pester -Configuration $pesterConfig
 
-      - name: Get next version and build
+      - name: Get next version and build #Execute the moduleForge command to create new module files
         shell: pwsh
         id: generate_tag
         if: success()
         run: |
           $VerbosePreference = 'Continue'
-          write-verbose 'Getting Tags'
           $versionTags = git tag --list
           write-verbose "Got VersionTags: $versionTags"
           if($versionTags) {
-            Write-Verbose 'Version Tags Found'
             $versions = $versionTags.ForEach{[semver]::new($_.TrimStart("v"))}
             $latest = ($versions | Sort-Object -Descending | Select-Object -First 1)
+            Write-Verbose "Latest Tag Version: $($latest.tostring())"
           } else {
             Write-Verbose 'Generating new version from scratch at 1'
             $latest = [semver]::new(1,0,0)
           }
           $versionType="${{ github.event.inputs.version_type }}"
-          $releaseType="${{ github.event.inputs.release_type }}"
           write-verbose "Version Increment Type: $versionType"
+          $releaseType="${{ github.event.inputs.release_type }}"
           write-verbose "Version Release Type: $releaseType"
           $nextVerSplat = @{
             version = $latest #The current version
-
           }
           if($versionType -eq 'none'){
-            write-verbose 'Bump current version'
-
+            write-verbose 'Bumping current version'
           }else{
             write-verbose "Changing $versionType version"
             $nextVerSplat.increment = $versionType
           }
           if($releaseType -eq 'prerelease'){
-            write-verbose 'Pre Release'
+            write-verbose 'Adding PreRelease Tag'
             $nextVerSplat.prerelease = $true
-
           }else{
             write-verbose 'Stable Release'
             $nextVerSplat.stablerelease = $true
-
           }
           $nextVersion = get-mfNextSemver @nextVerSplat
           Write-Verbose "NEXT VERSION SHOULD BE: $nextVersion"
           build-mfProject -version $nextVersion -InformationAction Continue
-          Write-Output "::set-output name=next_version::$nextVersion"
+          write-verbose "Push $nextVersion to workflow as EnvVar"
+          write-output "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
 
-      - name: Publish to Local
+      - name: Publish to Local #Push the build from last step to a temporary file-based repository on the build machine. Add Repository to XML for GHPackages Compatibility
         shell: pwsh
         id: publish_local
         if: success()
         env:
           REPO_URI: ${{ github.repository }}
         run: |
-          $verbosePreference = 'continue'
+          $VerbosePreference = 'continue'
           $repositoryUri = "https://github.com/$($env:REPO_URI)"
           write-verbose "Repository URI: $repositoryUri"
           $currentPath = get-location
@@ -147,34 +143,34 @@ jobs:
           }
           add-mfRepositoryXmlData -repositoryUri $repositoryUri  -nugetPackagePath $nuRef
 
-      - name: Create new tag
+      - name: Create new tag #Create version tag
         shell: pwsh
         if: success()
         env:
           NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
         run: |
-          $verbosePreference = 'Continue'
+          $VerbosePreference = 'Continue'
           write-verbose 'Post VerbosePreference'
           Write-Verbose "Creating tag v$($env:NEXT_VERSION)"
           $ver = "v$($env:NEXT_VERSION)"
           
-          if($ver)
+          if($ver -and $ver -ne 'v' -and $ver.length -ge 6)
           {
             write-verbose "Tagging Version as: $ver"
             git tag "$ver"
             git push --tags 
           }else{
-            write-verbose 'No ver?'
+            throw 'No Version Tag found'
           }
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release #Push the nupkg and tag as a release
         shell: pwsh
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
         run: |
-          $verbosePreference = 'Continue'
+          $VerbosePreference = 'Continue'
           $ver = "v$($env:NEXT_VERSION)"
           $releaseName = "Release $($ver)"
           $releaseBody = "This is the release for version $ver"
@@ -189,29 +185,9 @@ jobs:
           }
 
           gh release create $ver --title $releaseName --notes $releaseBody
-
-      - name: Upload Nupkg to Release
-        shell: pwsh
-        if: success()
-        env:
-          NEXT_VERSION: ${{ steps.generate_tag.outputs.next_version }}
-          REPO_URI: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $verbosePreference = 'Continue'
-          $ver = "v$($env:NEXT_VERSION)"
-          $currentPath = get-location
-          $repositoryPath = join-path -path $currentPath -childPath 'LocalRepository'
-          $nuRef = (get-childItem -path $repositoryPath -recurse -filter *.nupkg).fullname
-          if($nuRef)
-          {
-            write-verbose "Found NUPKG: $nuRef"
-          }else{
-            throw 'No NUPKG found'
-          }
           gh release upload $ver $nuRef
 
-      - name: Publish to GitHub Packages
+      - name: Publish to GitHub Packages #Publish module to GH Packages
         shell: pwsh
         if: success()
         env:
@@ -219,7 +195,7 @@ jobs:
           REPO_URI: ${{ github.repository_owner }}
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          $verbosePreference = 'Continue'
+          $VerbosePreference = 'Continue'
           $ver = "v$($env:NEXT_VERSION)"
           $repoUri = "https://nuget.pkg.github.com/$($env:REPO_URI)/index.json"
           $currentPath = get-location
