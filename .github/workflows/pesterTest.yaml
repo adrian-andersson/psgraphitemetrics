@@ -1,7 +1,7 @@
 name: Run Pester Test on Main Commit
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
