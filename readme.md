@@ -42,7 +42,7 @@ PSGallery (Not there yet)
 
 ```pwsh
 #PSResourceGet (The better way to handle modules)
-Install-psresource -repository psgalelry -name PSgraphiteMetrics
+Install-psresource -repository psgallery -name PSgraphiteMetrics
 
 #PowerShellGet
 install-module -repository psgallery -name PSgraphiteMetrics
