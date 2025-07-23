@@ -1,4 +1,4 @@
-class graphiteMetric {
+class GraphiteMetric {
     [string]$metricName
     [double]$metricValue
     [unixTimeStamp]$timestamp
@@ -27,7 +27,7 @@ class graphiteMetric {
         $this.timestamp = [unixTimeStamp]::new($unixTimeStamp)
     }
 
-    [string] toGraphite(){
+    [string] ToGraphite(){
         return "$($this.metricName) $($this.metricValue.toString()) $($this.timestamp.ToString())"
     }
 }

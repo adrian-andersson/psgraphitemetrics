@@ -6,7 +6,7 @@ BeforeAll{
     $dependencies = [ordered]@{
         enums = @()
         validationClasses = @()
-        classes = @('1.unixTimeStamp.ps1','2.graphiteMetric.ps1','3.metricList.ps1')
+        classes = @('1.UnixTimeStamp.ps1','2.GraphiteMetric.ps1','3.MetricList.ps1')
         private = @()
     }
 
@@ -46,7 +46,7 @@ Describe 'New-GraphiteMetric' {
         $metricValue = 100
         $dateTime = Get-Date "2025-02-06T14:00:00"
         $metric = New-GraphiteMetric -metricName $metricName -metricValue $metricValue -datetime $dateTime
-        $($metric.GetType().Name) | Should -Be 'graphiteMetric'
+        $($metric.GetType().Name) | Should -Be 'GraphiteMetric'
         $metric.metricName | Should -Be $metricName
         $metric.metricValue | Should -Be $metricValue
         $metric.timestamp.toString() | Should -Be $(get-date $dateTime -UFormat %s)
@@ -57,7 +57,7 @@ Describe 'New-GraphiteMetric' {
         $metricValue = 100
         $unixTimeStamp = 1672531199
         $metric = New-GraphiteMetric -metricName $metricName -metricValue $metricValue -timestampstring $unixTimeStamp
-        $($metric.GetType().Name) | Should -Be 'graphiteMetric'
+        $($metric.GetType().Name) | Should -Be 'GraphiteMetric'
         $metric.MetricName | Should -Be $metricName
         $metric.MetricValue | Should -Be $metricValue
         $metric.timestamp.toString() | Should -Be $unixTimeStamp 

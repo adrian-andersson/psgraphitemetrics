@@ -6,7 +6,7 @@ BeforeAll{
     $dependencies = [ordered]@{
         enums = @()
         validationClasses = @()
-        classes = @('1.unixTimeStamp.ps1','2.graphiteMetric.ps1','3.metricList.ps1')
+        classes = @('1.UnixTimeStamp.ps1','2.GraphiteMetric.ps1','3.MetricList.ps1')
         private = @()
     }
 
@@ -28,7 +28,7 @@ BeforeAll{
     . $PSCommandPath.Replace('.Tests.ps1','.ps1')
 }
 
-Describe "new-graphiteMetricLists" {
+Describe "New-GraphiteMetricList" {
     
     It 'Should create an empty MetricList' {
         $metricList = New-GraphiteMetricList

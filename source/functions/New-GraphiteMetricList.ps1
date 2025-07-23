@@ -1,4 +1,4 @@
-function new-graphiteMetricList
+function New-GraphiteMetricList
 {
 
     <#
@@ -25,13 +25,7 @@ function new-graphiteMetricList
             
         .NOTES
             Author: Adrian Andersson
-            
-            
-            Changelog:
-            
-                2025-02-06 - AA
-                    - Created Function
-                    
+
     #>
 
     [CmdletBinding()]

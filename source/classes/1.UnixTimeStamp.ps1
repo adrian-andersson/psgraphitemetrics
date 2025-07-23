@@ -1,4 +1,4 @@
-class unixTimeStamp {
+class UnixTimeStamp {
     [long]$Timestamp
 
     UnixTimeStamp([long]$timestamp){
