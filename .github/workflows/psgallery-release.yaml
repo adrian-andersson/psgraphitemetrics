@@ -6,19 +6,19 @@ on:
 jobs:
   psgalleryDeploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GH_PAT }}
           fetch-depth: 0 #Ensure we are getting all the tag history
 
       - name: Get latest release details
         id: get_release
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           $verbosePreference = 'Continue'
           $release = gh release view --json tagName,name,body,createdAt,author,assets,isPrerelease
@@ -64,20 +64,24 @@ jobs:
           register-psresourcerepository @repositorySplat
           write-verbose "Repositories:`n $(get-psresourceRepository|select name,uri,trusted|format-list|out-string)"
 
-      - name: Install Latest Module
+      - name: Install Latest Module And Publish to Gallery
         shell: pwsh
         id: moduleInstall
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ github.token }}
           PSGalleryToken: ${{ secrets.PSGALLERY }}
           isPreRelease: ${{ steps.get_release.outputs.release_isPreRelease }}
           tagName: ${{ steps.get_release.outputs.tag_name }}
         if: success()  
         run: |
           $VerbosePreference = 'Continue'
-          $isPreRelease = $env:isPreRelease 
+          $isPreRelease = $env:isPreRelease
+          if(!(test-path .\moduleForgeConfig.xml)){
+            throw 'Error reading ModuleForge Config'
+          }
           $config = import-clixml .\moduleForgeConfig.xml
-          write-verbose "ModuleName: $($config.moduleName)"
+          $moduleName = $config.moduleName
+          write-verbose "ModuleName: $moduleName"
           $credential = New-Object System.Management.Automation.PSCredential("githubActions", (ConvertTo-SecureString $env:GH_TOKEN -AsPlainText -Force))
           $versionString = $env:tagName
           write-verbose "Version from Tag: $versionString"
@@ -86,7 +90,7 @@ jobs:
           write-verbose "VersionConvert : $semver"
           $fetchSplat = @{
             Repository = 'myGHPackages'
-            name = $($config.moduleName)
+            name = $moduleName
             credential = $credential
             version = $semver
           }
@@ -98,12 +102,12 @@ jobs:
           }else{
             write-warning 'No module found'
           }
-          $moduleFound = get-module psgraphitemetrics -listAvailable
+          $moduleFound = get-module $moduleName -listAvailable
           if($moduleFound)
           {
             write-verbose "ModuleFound:`n$($moduleFound|out-string)"
           }else{
-            write-warning 'Module failed install'
+            throw 'Module failed install'
           }
           write-verbose 'Push Package to PSGallery'
           $publishSplat = @{
