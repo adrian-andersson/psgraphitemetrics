@@ -6,9 +6,9 @@ BeforeAll{
     $dependencies = [ordered]@{
         enums = @()
         validationClasses = @()
-        classes = @('1.unixTimeStamp.ps1','2.graphiteMetric.ps1','3.metricList.ps1')
+        classes = @('1.UnixTimeStamp.ps1','2.GraphiteMetric.ps1','3.MetricList.ps1')
         private = @()
-        functions = @('new-graphiteMetricList.ps1')
+        functions = @('New-GraphiteMetricList.ps1')
     }
 
     $dependencies.GetEnumerator().ForEach{
