@@ -26,17 +26,10 @@ jobs:
           $releaseFromJson = $release|convertFrom-json -errorAction ignore
           $tagName = $releaseFromJson.tagName
           $releaseName = $releaseFromJson.name
-          $releaseBody = $releaseFromJson.body
-          $createdAt = $releaseFromJson.createdAt
-          $author = $releaseFromJson.author
-          $assets = $releaseFromJson.assets
           $isPreRelease = $releaseFromJson.isPrerelease
+          write-verbose "tagName: $($tagName) releaseName: $($releaseName) isPreRelease: $($isPreRelease)"
           Write-Output "tag_name=$tagName" >> $env:GITHUB_OUTPUT
           Write-Output "release_name=$releaseName" >> $env:GITHUB_OUTPUT
-          Write-Output "release_body=$releaseBody" >> $env:GITHUB_OUTPUT
-          Write-Output "release_author=$author" >> $env:GITHUB_OUTPUT
-          Write-Output "release_createdAt=$createdAt" >> $env:GITHUB_OUTPUT
-          Write-Output "release_assets=$assets" >> $env:GITHUB_OUTPUT
           Write-Output "release_isPreRelease=$isPreRelease" >> $env:GITHUB_OUTPUT
 
       - name: Install dependencies
