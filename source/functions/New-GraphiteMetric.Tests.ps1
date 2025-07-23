@@ -33,7 +33,7 @@ Describe 'New-GraphiteMetric' {
         $metricName = 'test.metric'
         $metricValue = 100
         $metric = New-GraphiteMetric -metricName $metricName -metricValue $metricValue
-        $($metric.GetType().Name) | Should -Be 'graphiteMetric'
+        $($metric.GetType().Name) | Should -Be 'GraphiteMetric'
         $metric.metricName | Should -Be $metricName
         $metric.metricValue | Should -Be $metricValue
         [int]$($metric.timestamp.toString()) | Should -BeGreaterThan 0
